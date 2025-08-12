@@ -1,25 +1,32 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
-
-	"github.com/sashabaranov/go-openai"
+	"os"
 
 	"github.com/Yoosu-L/llmapibenchmark/internal/api"
 	"github.com/Yoosu-L/llmapibenchmark/internal/utils"
+	"github.com/sashabaranov/go-openai"
+	"github.com/spf13/pflag"
 )
 
 func main() {
-	baseURL := flag.String("base_url", "", "Base URL of the OpenAI API")
-	apiKey := flag.String("apikey", "", "API key for authentication")
-	model := flag.String("model", "", "Model to be used for the requests (optional)")
-	prompt := flag.String("prompt", "Write a long story, no less than 10,000 words, starting from a long, long time ago.", "Prompt to be used for generating responses")
-	numWords := flag.Int("numWords", 0, "Number of words Input")
-	concurrencyStr := flag.String("concurrency", "1,2,4,8,16,32,64,128", "Comma-separated list of concurrency levels")
-	maxTokens := flag.Int("max_tokens", 512, "Maximum number of tokens to generate")
-	flag.Parse()
+	baseURL := pflag.StringP("base-url", "u", "", "Base URL of the OpenAI API")
+	apiKey := pflag.StringP("api-key", "k", "", "API key for authentication")
+	model := pflag.StringP("model", "m", "", "Model to be used for the requests (optional)")
+	prompt := pflag.StringP("prompt", "p", "Write a long story, no less than 10,000 words, starting from a long, long time ago.", "Prompt to be used for generating responses")
+	numWords := pflag.IntP("num-words", "n", 0, "Number of words Input")
+	concurrencyStr := pflag.StringP("concurrency", "c", "1,2,4,8,16,32,64,128", "Comma-separated list of concurrency levels")
+	maxTokens := pflag.IntP("max-tokens", "t", 512, "Maximum number of tokens to generate")
+	help := pflag.BoolP("help", "h", false, "Show this help message")
+	pflag.Parse()
+
+	if *help {
+		fmt.Printf("Usage of %s:\n", os.Args[0])
+		pflag.PrintDefaults()
+		os.Exit(0)
+	}
 
 	// Parse concurrency levels
 	concurrencyLevels, err := utils.ParseConcurrencyLevels(*concurrencyStr)
