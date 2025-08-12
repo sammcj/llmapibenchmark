@@ -66,13 +66,13 @@ func main() {
 
 	// Get input tokens
 	if useRandomInput {
-		resp, err := api.AskOpenAIwithRandomInputNonStream(client, modelName, *numWords/4, 1)
+		resp, err := api.AskOpenAIwithRandomInputNonStream(client, modelName, *numWords/4, 4)
 		if err != nil {
 			log.Fatalf("Error getting prompt tokens: %v", err)
 		}
 		inputTokens = resp.Usage.PromptTokens
 	} else {
-		resp, err := api.AskOpenAINonStream(client, modelName, *prompt, 1)
+		resp, err := api.AskOpenAINonStream(client, modelName, *prompt, 4)
 		if err != nil {
 			log.Fatalf("Error getting prompt tokens: %v", err)
 		}
