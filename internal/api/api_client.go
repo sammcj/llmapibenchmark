@@ -5,26 +5,27 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/sashabaranov/go-openai"
 )
 
 // AskOpenAI sends a prompt to the OpenAI API and retrieves the response.
-func AskOpenAI(client *openai.Client, model, prompt string, maxTokens int) (float64, int, int, error) {
+func AskOpenAI(client *openai.Client, model string, prompt string, maxTokens int) (float64, int, int, error) {
 	start := time.Now()
-	var ttft float64
-	var completionTokens, promptTokens int
+
+	var (
+		ttft           float64
+		firstTokenSeen bool
+		lastUsage      *openai.Usage
+	)
 
 	stream, err := client.CreateChatCompletionStream(
 		context.Background(),
 		openai.ChatCompletionRequest{
 			Model: model,
 			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleSystem,
-					Content: "You are a helpful assistant.",
-				},
 				{
 					Role:    openai.ChatMessageRoleUser,
 					Content: prompt,
@@ -33,6 +34,9 @@ func AskOpenAI(client *openai.Client, model, prompt string, maxTokens int) (floa
 			MaxTokens:   maxTokens,
 			Temperature: 1,
 			Stream:      true,
+			StreamOptions: &openai.StreamOptions{
+				IncludeUsage: true,
+			},
 		},
 	)
 	if err != nil {
@@ -40,81 +44,41 @@ func AskOpenAI(client *openai.Client, model, prompt string, maxTokens int) (floa
 	}
 	defer stream.Close()
 
-	first := true
 	for {
-		response, err := stream.Recv()
+		resp, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
 			return 0, 0, 0, fmt.Errorf("stream error: %w", err)
 		}
-		if first {
-			ttft = time.Since(start).Seconds()
-			if response.Usage != nil {
-				promptTokens = response.Usage.PromptTokens
+
+		if !firstTokenSeen && len(resp.Choices) > 0 {
+			content := resp.Choices[0].Delta.Content
+			if strings.TrimSpace(content) != "" {
+				ttft = time.Since(start).Seconds()
+				firstTokenSeen = true
 			}
-			first = false
 		}
-		if len(response.Choices) > 0 {
-			completionTokens += len(response.Choices[0].Delta.Content)
+
+		if resp.Usage != nil {
+			lastUsage = resp.Usage
 		}
 	}
+
+	var promptTokens, completionTokens int
+	if lastUsage != nil {
+		promptTokens = lastUsage.PromptTokens
+		completionTokens = lastUsage.CompletionTokens
+	}
+
 	return ttft, completionTokens, promptTokens, nil
 }
 
 // AskOpenAIwithRandomInput sends a prompt to the OpenAI API and retrieves the response.
 func AskOpenAIwithRandomInput(client *openai.Client, model string, numWords int, maxTokens int) (float64, int, int, error) {
 	prompt := generateRandomPhrase(numWords)
-	start := time.Now()
-	var ttft float64
-	var completionTokens, promptTokens int
-
-	stream, err := client.CreateChatCompletionStream(
-		context.Background(),
-		openai.ChatCompletionRequest{
-			Model: model,
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleSystem,
-					Content: "You are a helpful assistant.",
-				},
-				{
-					Role:    openai.ChatMessageRoleUser,
-					Content: prompt,
-				},
-			},
-			MaxTokens:   maxTokens,
-			Temperature: 1,
-			Stream:      true,
-		},
-	)
-	if err != nil {
-		return 0, 0, 0, fmt.Errorf("OpenAI API request failed: %w", err)
-	}
-	defer stream.Close()
-
-	first := true
-	for {
-		response, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return 0, 0, 0, fmt.Errorf("stream error: %w", err)
-		}
-		if first {
-			ttft = time.Since(start).Seconds()
-			if response.Usage != nil {
-				promptTokens = response.Usage.PromptTokens
-			}
-			first = false
-		}
-		if len(response.Choices) > 0 {
-			completionTokens += len(response.Choices[0].Delta.Content)
-		}
-	}
-	return ttft, completionTokens, promptTokens, nil
+	return AskOpenAI(client, model, prompt, maxTokens)
 }
 
 // AskOpenAI with no stream

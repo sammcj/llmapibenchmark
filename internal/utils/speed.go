@@ -11,7 +11,7 @@ import (
 )
 
 // MeasureSpeed measures API generation throughput and TTFT.
-func MeasureSpeed(baseURL, apiKey, model, prompt string, concurrency, inputTokens, maxTokens int, latency float64) (float64, float64, float64, float64) {
+func MeasureSpeed(baseURL, apiKey, model, prompt string, concurrency, maxTokens int, latency float64) (float64, float64, float64, float64) {
 	config := openai.DefaultConfig(apiKey)
 	config.BaseURL = baseURL
 	client := openai.NewClientWithConfig(config)
@@ -28,7 +28,7 @@ func MeasureSpeed(baseURL, apiKey, model, prompt string, concurrency, inputToken
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			ttft, completionTokens, _, err := api.AskOpenAI(client, model, prompt, maxTokens)
+			ttft, completionTokens, inputTokens, err := api.AskOpenAI(client, model, prompt, maxTokens)
 			if err != nil {
 				return
 			}
@@ -77,7 +77,7 @@ func MeasureSpeed(baseURL, apiKey, model, prompt string, concurrency, inputToken
 	return generationSpeed, promptThroughput, maxTTFT, minTTFT
 }
 
-func MeasureSpeedwithRandomInput(baseURL, apiKey, model string, numWords int, concurrency, inputTokens, maxTokens int, latency float64) (float64, float64, float64, float64) {
+func MeasureSpeedwithRandomInput(baseURL, apiKey, model string, numWords int, concurrency, maxTokens int, latency float64) (float64, float64, float64, float64) {
 	config := openai.DefaultConfig(apiKey)
 	config.BaseURL = baseURL
 	client := openai.NewClientWithConfig(config)
@@ -94,7 +94,7 @@ func MeasureSpeedwithRandomInput(baseURL, apiKey, model string, numWords int, co
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			ttft, completionTokens, _, err := api.AskOpenAIwithRandomInput(client, model, numWords, maxTokens)
+			ttft, completionTokens, inputTokens, err := api.AskOpenAIwithRandomInput(client, model, numWords, maxTokens)
 			if err != nil {
 				return
 			}

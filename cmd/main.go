@@ -102,9 +102,9 @@ func runBenchmark(baseURL, apiKey, modelName, prompt string, inputTokens, maxTok
 	for _, concurrency := range concurrencyLevels {
 		var generationSpeed, promptThroughput, maxTTFT, minTTFT float64
 		if useRandomInput {
-			generationSpeed, promptThroughput, maxTTFT, minTTFT = utils.MeasureSpeedwithRandomInput(baseURL, apiKey, modelName, numWords/4, concurrency, inputTokens, maxTokens, latency)
+			generationSpeed, promptThroughput, maxTTFT, minTTFT = utils.MeasureSpeedwithRandomInput(baseURL, apiKey, modelName, numWords/4, concurrency, maxTokens, latency)
 		} else {
-			generationSpeed, promptThroughput, maxTTFT, minTTFT = utils.MeasureSpeed(baseURL, apiKey, modelName, prompt, concurrency, inputTokens, maxTokens, latency)
+			generationSpeed, promptThroughput, maxTTFT, minTTFT = utils.MeasureSpeed(baseURL, apiKey, modelName, prompt, concurrency, maxTokens, latency)
 		}
 
 		// Print current results
