@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"math"
 	"sync"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 )
 
 // MeasureSpeed measures API generation throughput and TTFT.
-func MeasureSpeed(baseURL, apiKey, model, prompt string, concurrency, maxTokens int, latency float64) (float64, float64, float64, float64) {
+func MeasureSpeed(baseURL, apiKey, model, prompt string, concurrency, inputTokens, maxTokens int, latency float64) (float64, float64, float64, float64) {
 	config := openai.DefaultConfig(apiKey)
 	config.BaseURL = baseURL
 	client := openai.NewClientWithConfig(config)
@@ -18,9 +19,7 @@ func MeasureSpeed(baseURL, apiKey, model, prompt string, concurrency, maxTokens 
 	var wg sync.WaitGroup
 	var responseTokens sync.Map
 	var promptTokens sync.Map
-
-	// Measure TTFT
-	maxTTFT, minTTFT := api.MeasureTTFT(client, model, prompt, concurrency)
+	var ttfts sync.Map
 
 	start := time.Now()
 
@@ -29,12 +28,13 @@ func MeasureSpeed(baseURL, apiKey, model, prompt string, concurrency, maxTokens 
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			resp, err := api.AskOpenAI(client, model, prompt, maxTokens)
+			ttft, completionTokens, _, err := api.AskOpenAI(client, model, prompt, maxTokens)
 			if err != nil {
 				return
 			}
-			responseTokens.Store(index, resp.Usage.CompletionTokens)
-			promptTokens.Store(index, resp.Usage.PromptTokens)
+			ttfts.Store(index, ttft)
+			responseTokens.Store(index, completionTokens)
+			promptTokens.Store(index, inputTokens)
 		}(i)
 	}
 
@@ -51,6 +51,20 @@ func MeasureSpeed(baseURL, apiKey, model, prompt string, concurrency, maxTokens 
 	totalPromptTokens := 0
 	promptTokens.Range(func(_, value interface{}) bool {
 		totalPromptTokens += value.(int)
+		return true
+	})
+
+	// Calculate max and min TTFT
+	maxTTFT := 0.0
+	minTTFT := math.Inf(1)
+	ttfts.Range(func(_, value interface{}) bool {
+		ttft := value.(float64)
+		if ttft > maxTTFT {
+			maxTTFT = ttft
+		}
+		if ttft < minTTFT {
+			minTTFT = ttft
+		}
 		return true
 	})
 
@@ -63,7 +77,7 @@ func MeasureSpeed(baseURL, apiKey, model, prompt string, concurrency, maxTokens 
 	return generationSpeed, promptThroughput, maxTTFT, minTTFT
 }
 
-func MeasureSpeedwithRandomInput(baseURL, apiKey, model string, numWords int, concurrency, maxTokens int, latency float64) (float64, float64, float64, float64) {
+func MeasureSpeedwithRandomInput(baseURL, apiKey, model string, numWords int, concurrency, inputTokens, maxTokens int, latency float64) (float64, float64, float64, float64) {
 	config := openai.DefaultConfig(apiKey)
 	config.BaseURL = baseURL
 	client := openai.NewClientWithConfig(config)
@@ -71,9 +85,7 @@ func MeasureSpeedwithRandomInput(baseURL, apiKey, model string, numWords int, co
 	var wg sync.WaitGroup
 	var responseTokens sync.Map
 	var promptTokens sync.Map
-
-	// Measure TTFT
-	maxTTFT, minTTFT := api.MeasureTTFTwithRandomInput(client, model, numWords, concurrency)
+	var ttfts sync.Map
 
 	start := time.Now()
 
@@ -82,12 +94,13 @@ func MeasureSpeedwithRandomInput(baseURL, apiKey, model string, numWords int, co
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			resp, err := api.AskOpenAIwithRandomInput(client, model, numWords, maxTokens)
+			ttft, completionTokens, _, err := api.AskOpenAIwithRandomInput(client, model, numWords, maxTokens)
 			if err != nil {
 				return
 			}
-			responseTokens.Store(index, resp.Usage.CompletionTokens)
-			promptTokens.Store(index, resp.Usage.PromptTokens)
+			ttfts.Store(index, ttft)
+			responseTokens.Store(index, completionTokens)
+			promptTokens.Store(index, inputTokens)
 		}(i)
 	}
 
@@ -104,6 +117,20 @@ func MeasureSpeedwithRandomInput(baseURL, apiKey, model string, numWords int, co
 	totalPromptTokens := 0
 	promptTokens.Range(func(_, value interface{}) bool {
 		totalPromptTokens += value.(int)
+		return true
+	})
+
+	// Calculate max and min TTFT
+	maxTTFT := 0.0
+	minTTFT := math.Inf(1)
+	ttfts.Range(func(_, value interface{}) bool {
+		ttft := value.(float64)
+		if ttft > maxTTFT {
+			maxTTFT = ttft
+		}
+		if ttft < minTTFT {
+			minTTFT = ttft
+		}
 		return true
 	})
 
