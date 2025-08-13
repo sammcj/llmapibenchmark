@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -10,7 +11,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-type MeasurementSetup struct {
+type SpeedMeasurement struct {
 	BaseUrl        string
 	ApiKey         string
 	ModelName      string
@@ -22,15 +23,16 @@ type MeasurementSetup struct {
 	Concurrency    int
 }
 
-type Measurement struct {
-	GenerationSpeed  float64 `json:"generation_speed"`
-	PromptThroughput float64 `json:"prompt_throughput"`
-	MaxTtft          float64 `json:"max_ttft"`
-	MinTtft          float64 `json:"min_ttft"`
+type SpeedResult struct {
+	Concurrency      int     `json:"concurrency" yaml:"concurrency"`
+	GenerationSpeed  float64 `json:"generation_speed" yaml:"generation-speed"`
+	PromptThroughput float64 `json:"prompt_throughput" yaml:"prompt-throughput"`
+	MaxTtft          float64 `json:"max_ttft" yaml:"max-ttft"`
+	MinTtft          float64 `json:"min_ttft" yaml:"min-ttft"`
 }
 
-// MeasureSpeed measures API generation throughput and TTFT.
-func (setup *MeasurementSetup) MeasureSpeed() Measurement {
+// Run measures API generation throughput and TTFT.
+func (setup *SpeedMeasurement) Run() (SpeedResult, error) {
 	config := openai.DefaultConfig(setup.ApiKey)
 	config.BaseURL = setup.BaseUrl
 	client := openai.NewClientWithConfig(config)
@@ -39,6 +41,7 @@ func (setup *MeasurementSetup) MeasureSpeed() Measurement {
 	var responseTokens sync.Map
 	var promptTokens sync.Map
 	var ttfts sync.Map
+	var threadErrors sync.Map
 
 	start := time.Now()
 
@@ -51,12 +54,12 @@ func (setup *MeasurementSetup) MeasureSpeed() Measurement {
 			var completionTokens, inputTokens int
 			var err error
 			if setup.UseRandomInput {
-				ttft, completionTokens, inputTokens, err = api.AskOpenAIwithRandomInput(client, setup.ModelName, setup.NumWords, setup.MaxTokens)
+				ttft, completionTokens, inputTokens, err = api.AskOpenAiStreamWithRandomInput(client, setup.ModelName, setup.NumWords, setup.MaxTokens)
 			} else {
-				ttft, completionTokens, inputTokens, err = api.AskOpenAI(client, setup.ModelName, setup.Prompt, setup.MaxTokens)
+				ttft, completionTokens, inputTokens, err = api.AskOpenAiStream(client, setup.ModelName, setup.Prompt, setup.MaxTokens)
 			}
 			if err != nil {
-				// TODO use a mutex to store err and handle in outer thread
+				threadErrors.Store(index, err)
 				return
 			}
 			ttfts.Store(index, ttft)
@@ -67,6 +70,16 @@ func (setup *MeasurementSetup) MeasureSpeed() Measurement {
 
 	wg.Wait()
 	duration := time.Since(start)
+
+	// Check if any errors occurred
+	var errSlice []error
+	threadErrors.Range(func(key, value interface{}) bool {
+		errSlice = append(errSlice, value.(error))
+		return true
+	})
+	if len(errSlice) > 0 {
+		return SpeedResult{}, fmt.Errorf("error measuring speed: %v", errSlice)
+	}
 
 	// Calculate total tokens
 	totalResponseTokens := 0
@@ -81,7 +94,8 @@ func (setup *MeasurementSetup) MeasureSpeed() Measurement {
 		return true
 	})
 
-	measurement := Measurement{}
+	measurement := SpeedResult{}
+	measurement.Concurrency = setup.Concurrency
 
 	// Calculate max and min TTFT
 	measurement.MaxTtft = 0.0
@@ -103,5 +117,5 @@ func (setup *MeasurementSetup) MeasureSpeed() Measurement {
 	// Calculate Prompt Throughput
 	measurement.PromptThroughput = float64(totalPromptTokens) / (measurement.MaxTtft - setup.Latency/1000)
 
-	return measurement
+	return measurement, nil
 }

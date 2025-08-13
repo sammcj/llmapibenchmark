@@ -11,14 +11,14 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-// AskOpenAI sends a prompt to the OpenAI API and retrieves the response.
-func AskOpenAI(client *openai.Client, model string, prompt string, maxTokens int) (float64, int, int, error) {
+// AskOpenAiStream sends a prompt to the OpenAI API, processes the response stream and returns stats on it.
+func AskOpenAiStream(client *openai.Client, model string, prompt string, maxTokens int) (float64, int, int, error) {
 	start := time.Now()
 
 	var (
-		ttft           float64
-		firstTokenSeen bool
-		lastUsage      *openai.Usage
+		timeToFirstToken float64
+		firstTokenSeen   bool
+		lastUsage        *openai.Usage
 	)
 
 	stream, err := client.CreateChatCompletionStream(
@@ -31,9 +31,9 @@ func AskOpenAI(client *openai.Client, model string, prompt string, maxTokens int
 					Content: prompt,
 				},
 			},
-			MaxTokens:   maxTokens,
-			Temperature: 1,
-			Stream:      true,
+			MaxCompletionTokens: maxTokens,
+			Temperature:         1,
+			Stream:              true,
 			StreamOptions: &openai.StreamOptions{
 				IncludeUsage: true,
 			},
@@ -56,7 +56,7 @@ func AskOpenAI(client *openai.Client, model string, prompt string, maxTokens int
 		if !firstTokenSeen && len(resp.Choices) > 0 {
 			content := resp.Choices[0].Delta.Content
 			if strings.TrimSpace(content) != "" {
-				ttft = time.Since(start).Seconds()
+				timeToFirstToken = time.Since(start).Seconds()
 				firstTokenSeen = true
 			}
 		}
@@ -72,17 +72,16 @@ func AskOpenAI(client *openai.Client, model string, prompt string, maxTokens int
 		completionTokens = lastUsage.CompletionTokens
 	}
 
-	return ttft, completionTokens, promptTokens, nil
+	return timeToFirstToken, completionTokens, promptTokens, nil
 }
 
-// AskOpenAIwithRandomInput sends a prompt to the OpenAI API and retrieves the response.
-func AskOpenAIwithRandomInput(client *openai.Client, model string, numWords int, maxTokens int) (float64, int, int, error) {
+func AskOpenAiStreamWithRandomInput(client *openai.Client, model string, numWords int, maxTokens int) (float64, int, int, error) {
 	prompt := generateRandomPhrase(numWords)
-	return AskOpenAI(client, model, prompt, maxTokens)
+	return AskOpenAiStream(client, model, prompt, maxTokens)
 }
 
-// AskOpenAI with no stream
-func AskOpenAINonStream(client *openai.Client, model, prompt string, maxTokens int) (*openai.ChatCompletionResponse, error) {
+// AskOpenAi sends a prompt to the OpenAI API and returns the response, not using streaming.
+func AskOpenAi(client *openai.Client, model, prompt string, maxTokens int) (*openai.ChatCompletionResponse, error) {
 	resp, err := client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
@@ -97,8 +96,8 @@ func AskOpenAINonStream(client *openai.Client, model, prompt string, maxTokens i
 					Content: prompt,
 				},
 			},
-			MaxTokens:   maxTokens,
-			Temperature: 1,
+			MaxCompletionTokens: maxTokens,
+			Temperature:         1,
 		},
 	)
 	if err != nil {
@@ -107,31 +106,9 @@ func AskOpenAINonStream(client *openai.Client, model, prompt string, maxTokens i
 	return &resp, nil
 }
 
-// AskOpenAIwithRandomInput with no stream
-func AskOpenAIwithRandomInputNonStream(client *openai.Client, model string, numWords int, maxTokens int) (*openai.ChatCompletionResponse, error) {
+func AskOpenAiWithRandomInput(client *openai.Client, model string, numWords int, maxTokens int) (*openai.ChatCompletionResponse, error) {
 	prompt := generateRandomPhrase(numWords)
-	resp, err := client.CreateChatCompletion(
-		context.Background(),
-		openai.ChatCompletionRequest{
-			Model: model,
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleSystem,
-					Content: "You are a helpful assistant.",
-				},
-				{
-					Role:    openai.ChatMessageRoleUser,
-					Content: prompt,
-				},
-			},
-			MaxTokens:   maxTokens,
-			Temperature: 1,
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("OpenAI API request failed: %w", err)
-	}
-	return &resp, nil
+	return AskOpenAi(client, model, prompt, maxTokens)
 }
 
 // GetFirstAvailableModel retrieves the first available model from the OpenAI API.

@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
-func (benchmark *Benchmark) Json() (string, error) {
+func (benchmark *BenchmarkResult) Json() (string, error) {
 	prettyJSON, err := json.MarshalIndent(benchmark, "", "    ")
 	if err != nil {
 		return "", fmt.Errorf("error marshalling JSON: %w", err)
@@ -16,7 +16,7 @@ func (benchmark *Benchmark) Json() (string, error) {
 	return string(prettyJSON), nil
 }
 
-func (benchmark *Benchmark) Yaml() (string, error) {
+func (benchmark *BenchmarkResult) Yaml() (string, error) {
 	yamlData, err := yaml.Marshal(&benchmark)
 	if err != nil {
 		return "", fmt.Errorf("error marshalling yaml: %v", err)

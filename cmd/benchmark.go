@@ -6,15 +6,15 @@ import (
 	"github.com/Yoosu-L/llmapibenchmark/internal/utils"
 )
 
-func (setup *BenchmarkSetup) runBenchmarkCli() error {
+func (benchmark *Benchmark) runCli() error {
 	// Test latency
-	latency, err := utils.TestSpeedWithSystemProxy(setup.BaseURL, 5)
+	latency, err := utils.MeasureLatency(benchmark.BaseURL, 5)
 	if err != nil {
 		return fmt.Errorf("latency test error: %v", err)
 	}
 
 	// Print benchmark header
-	utils.PrintBenchmarkHeader(setup.ModelName, setup.InputTokens, setup.MaxTokens, latency)
+	utils.PrintBenchmarkHeader(benchmark.ModelName, benchmark.InputTokens, benchmark.MaxTokens, latency)
 
 	// Print table header
 	fmt.Println("| Concurrency | Generation Throughput (tokens/s) |  Prompt Throughput (tokens/s) | Min TTFT (s) | Max TTFT (s) |")
@@ -22,77 +22,83 @@ func (setup *BenchmarkSetup) runBenchmarkCli() error {
 
 	// Test each concurrency level and print results
 	var results [][]interface{}
-	for _, concurrency := range setup.ConcurrencyLevels {
-		measurement, err := setup.measureConcurrency(latency, concurrency)
+	for _, concurrency := range benchmark.ConcurrencyLevels {
+		result, err := benchmark.measureSpeed(latency, concurrency)
 		if err != nil {
-			return fmt.Errorf("concurrency %d measurement error: %v", concurrency, err)
+			return fmt.Errorf("concurrency %d: %v", concurrency, err)
 		}
 
 		// Print current results
 		fmt.Printf("| %11d | %32.2f | %29.2f | %12.2f | %12.2f |\n",
 			concurrency,
-			measurement.GenerationSpeed,
-			measurement.PromptThroughput,
-			measurement.MaxTtft,
-			measurement.MaxTtft,
+			result.GenerationSpeed,
+			result.PromptThroughput,
+			result.MaxTtft,
+			result.MaxTtft,
 		)
 
 		// Save results for later
 		results = append(results, []interface{}{
 			concurrency,
-			measurement.GenerationSpeed,
-			measurement.PromptThroughput,
-			measurement.MaxTtft,
-			measurement.MaxTtft,
+			result.GenerationSpeed,
+			result.PromptThroughput,
+			result.MaxTtft,
+			result.MaxTtft,
 		})
 	}
 
 	fmt.Println("\n================================================================================================================")
 
 	// Save results to Markdown
-	utils.SaveResultsToMD(results, setup.ModelName, setup.InputTokens, setup.MaxTokens, latency)
+	utils.SaveResultsToMD(results, benchmark.ModelName, benchmark.InputTokens, benchmark.MaxTokens, latency)
 
 	return nil
 }
 
-func (setup *BenchmarkSetup) runBenchmark() (Benchmark, error) {
-	benchmark := Benchmark{}
+func (benchmark *Benchmark) run() (BenchmarkResult, error) {
+	result := BenchmarkResult{}
+	result.ModelName = benchmark.ModelName
+	result.InputTokens = benchmark.InputTokens
+	result.MaxTokens = benchmark.MaxTokens
 
 	// Test latency
-	latency, err := utils.TestSpeedWithSystemProxy(setup.BaseURL, 5)
+	latency, err := utils.MeasureLatency(benchmark.BaseURL, 5)
 	if err != nil {
-		return benchmark, fmt.Errorf("error testing latency: %v", err)
+		return result, fmt.Errorf("error testing latency: %v", err)
 	}
-	benchmark.Latency = latency
+	result.Latency = latency
 
-	for _, concurrency := range setup.ConcurrencyLevels {
-		measurement, err := setup.measureConcurrency(latency, concurrency)
+	for _, concurrency := range benchmark.ConcurrencyLevels {
+		measurement, err := benchmark.measureSpeed(latency, concurrency)
 		if err != nil {
-			return benchmark, fmt.Errorf("concurrency %d measurement error: %v", concurrency, err)
+			return result, fmt.Errorf("concurrency %d: %v", concurrency, err)
 		}
 
-		benchmark.Measurements = append(benchmark.Measurements, measurement)
+		result.Results = append(result.Results, measurement)
 	}
 
-	return benchmark, nil
+	return result, nil
 }
 
-func (setup *BenchmarkSetup) measureConcurrency(latency float64, concurrency int) (utils.Measurement, error) {
-	measurementSetup := utils.MeasurementSetup{
-		BaseUrl:     setup.BaseURL,
-		ApiKey:      setup.ApiKey,
-		ModelName:   setup.ModelName,
-		Prompt:      setup.Prompt,
-		NumWords:    setup.NumWords,
-		MaxTokens:   setup.MaxTokens,
+func (benchmark *Benchmark) measureSpeed(latency float64, concurrency int) (utils.SpeedResult, error) {
+	speedMeasurement := utils.SpeedMeasurement{
+		BaseUrl:     benchmark.BaseURL,
+		ApiKey:      benchmark.ApiKey,
+		ModelName:   benchmark.ModelName,
+		Prompt:      benchmark.Prompt,
+		NumWords:    benchmark.NumWords,
+		MaxTokens:   benchmark.MaxTokens,
 		Latency:     latency,
 		Concurrency: concurrency,
 	}
-	if setup.UseRandomInput {
-		measurementSetup.UseRandomInput = true
+	if benchmark.UseRandomInput {
+		speedMeasurement.UseRandomInput = true
 	}
 
-	var measurement utils.Measurement
-	measurement = measurementSetup.MeasureSpeed()
-	return measurement, nil
+	var result utils.SpeedResult
+	result, err := speedMeasurement.Run()
+	if err != nil {
+		return result, fmt.Errorf("measurement error: %v", err)
+	}
+	return result, nil
 }
