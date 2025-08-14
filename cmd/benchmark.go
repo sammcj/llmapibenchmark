@@ -33,7 +33,7 @@ func (benchmark *Benchmark) runCli() error {
 			concurrency,
 			result.GenerationSpeed,
 			result.PromptThroughput,
-			result.MaxTtft,
+			result.MinTtft,
 			result.MaxTtft,
 		)
 
@@ -42,7 +42,7 @@ func (benchmark *Benchmark) runCli() error {
 			concurrency,
 			result.GenerationSpeed,
 			result.PromptThroughput,
-			result.MaxTtft,
+			result.MinTtft,
 			result.MaxTtft,
 		})
 	}
