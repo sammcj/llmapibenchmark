@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// TestSpeedWithSystemProxy tests the network latency to a given base URL.
-func TestSpeedWithSystemProxy(baseURL string, attempts int) (float64, error) {
+// MeasureLatency tests the network latency to a given base URL.
+func MeasureLatency(baseURL string, attempts int) (float64, error) {
 	if baseURL == "" {
 		return 0, fmt.Errorf("empty base URL")
 	}
