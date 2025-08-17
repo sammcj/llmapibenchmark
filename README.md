@@ -53,12 +53,12 @@ Latency: 2.20 ms
 
 **Linux:**
 ```bash
-./llmapibenchmark_linux_amd64 -base_url=https://your-api-endpoint.com/v1
+./llmapibenchmark_linux_amd64 --base-url https://your-api-endpoint.com/v1
 ```
 
 **Windows:**
 ```cmd
-llmapibenchmark_windows_amd64.exe -base_url=https://your-api-endpoint.com/v1
+llmapibenchmark_windows_amd64.exe --base-url https://your-api-endpoint.com/v1
 ```
 
 ### Full Configuration
@@ -66,52 +66,67 @@ llmapibenchmark_windows_amd64.exe -base_url=https://your-api-endpoint.com/v1
 **Linux:**
 ```bash
 ./llmapibenchmark_linux_amd64 \
-  -base_url=https://your-api-endpoint.com/v1 \
-  -apikey=YOUR_API_KEY \
-  -model=gpt-3.5-turbo \
-  -concurrency=1,2,4,8,16 \
-  -max_tokens=512 \
-  -numWords=513 \
-  -prompt="Your custom prompt here"
+  --base-url https://your-api-endpoint.com/v1 \
+  --api-key YOUR_API_KEY \
+  --model gpt-3.5-turbo \
+  --concurrency 1,2,4,8,16 \
+  --max-tokens 512 \
+  --num-words 513 \
+  --prompt "Your custom prompt here" \
+  --format json
 ```
 
 **Windows:**
 ```cmd
 llmapibenchmark_windows_amd64.exe ^
-  -base_url=https://your-api-endpoint.com/v1 ^
-  -apikey=YOUR_API_KEY ^
-  -model=gpt-3.5-turbo ^
-  -concurrency=1,2,4,8,16 ^
-  -max_tokens=512 ^
-  -numWords=513 ^
-  -prompt="Your custom prompt here"
+  --base-url https://your-api-endpoint.com/v1 ^
+  --api-key YOUR_API_KEY ^
+  --model gpt-3.5-turbo ^
+  --concurrency 1,2,4,8,16 ^
+  --max-tokens 512 ^
+  --num-words 513 ^
+  --prompt "Your custom prompt here" ^
+  --format json
 ```
 
 ## Command-Line Parameters
 
-| Parameter      | Description                                      | Default                                                                           | Required |
-|---------------|--------------------------------------------------|-----------------------------------------------------------------------------------|----------|
-| `-base_url`   | Base URL for LLM API endpoint                    | Empty (MUST be specified)                                                         | Yes      |
-| `-apikey`     | API authentication key                           | None                                                                              | No       |
-| `-model`      | Specific AI model to test                        | Automatically discovers first available model                                      | No       |
-| `-concurrency`| Comma-separated concurrency levels to test       | `1,2,4,8,16,32,64,128`                                                            | No       |
-| `-max_tokens` | Maximum tokens to generate per request           | `512`                                                                             | No       |
-| `-numWords`   | Number of words for input prompt    | Not set (optional)                                                                | No       |
-| `-prompt`     | Text prompt for generating responses             | `"Write a long story, no less than 10,000 words, starting from a long, long time ago."` | No       |
+| Parameter | Short | Description | Default | Required |
+|---|---|---|---|---|
+| `--base-url` | `-u` | Base URL for LLM API endpoint | Empty (MUST be specified) | Yes |
+| `--api-key` | `-k` | API authentication key | None | No |
+| `--model` | `-m` | Specific AI model to test | Automatically discovers first available model | No |
+| `--concurrency` | `-c` | Comma-separated concurrency levels to test | `1,2,4,8,16,32,64,128` | No |
+| `--max-tokens` | `-t` | Maximum tokens to generate per request | `512` | No |
+| `--num-words` | `-n` | Number of words for random input prompt | `0` | No |
+| `--prompt` | `-p` | Text prompt for generating responses | A long story | No |
+| `--format` | `-f` | Output format (json, yaml) | `""` | No |
+| `--help` | `-h` | Show help message | `false` | No |
 
 ## Output
 
-The tool generates:
-1. Console-based real-time results
-2. Markdown file (`API_Throughput_{ModelName}.md`) with detailed results
+The tool provides output in multiple formats, controlled by the `--format` flag.
 
-### Result File Columns
+### Default (CLI Table and Markdown File)
 
+If no format is specified, the tool generates:
+1.  **Real-time console results**: A table is displayed in the terminal with live updates.
+2.  **Markdown file**: A detailed report is saved to `API_Throughput_{ModelName}.md`.
+
+**Markdown File Columns:**
 - **Concurrency**: Number of concurrent requests
 - **Generation Throughput**: Tokens generated per second
 - **Prompt Throughput**: Input token processing speed
 - **Min TTFT**: Minimum time to first token
 - **Max TTFT**: Maximum time to first token
+
+### JSON Output (`--format json`)
+
+When using the `--format json` flag, the results are printed to the console in JSON format.
+
+### YAML Output (`--format yaml`)
+
+When using the `--format yaml` flag, the results are printed to the console in YAML format.
 
 ## Best Practices
 
