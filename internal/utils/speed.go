@@ -31,6 +31,10 @@ type SpeedResult struct {
 	MinTtft          float64 `json:"min_ttft" yaml:"min-ttft"`
 }
 
+func roundToTwoDecimals(f float64) float64 {
+	return math.Round(f*100) / 100
+}
+
 // Run measures API generation throughput and TTFT.
 func (setup *SpeedMeasurement) Run() (SpeedResult, error) {
 	config := openai.DefaultConfig(setup.ApiKey)
@@ -110,12 +114,14 @@ func (setup *SpeedMeasurement) Run() (SpeedResult, error) {
 		}
 		return true
 	})
+	measurement.MaxTtft = roundToTwoDecimals(measurement.MaxTtft)
+	measurement.MinTtft = roundToTwoDecimals(measurement.MinTtft)
 
 	// Calculate speed (tokens/second)
-	measurement.GenerationSpeed = float64(totalResponseTokens) / (duration.Seconds() - setup.Latency/1000)
+	measurement.GenerationSpeed = roundToTwoDecimals(float64(totalResponseTokens) / (duration.Seconds() - setup.Latency/1000))
 
 	// Calculate Prompt Throughput
-	measurement.PromptThroughput = float64(totalPromptTokens) / (measurement.MaxTtft - setup.Latency/1000)
+	measurement.PromptThroughput = roundToTwoDecimals(float64(totalPromptTokens) / (measurement.MaxTtft - setup.Latency/1000))
 
 	return measurement, nil
 }
