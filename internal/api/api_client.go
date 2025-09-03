@@ -31,6 +31,8 @@ func AskOpenAiStream(client *openai.Client, model string, prompt string, maxToke
 					Content: prompt,
 				},
 			},
+			// Add the deprecated `MaxTokens` for backward compatibility with some older API servers.
+			MaxTokens:           maxTokens,
 			MaxCompletionTokens: maxTokens,
 			Temperature:         1,
 			Stream:              true,
@@ -96,6 +98,8 @@ func AskOpenAi(client *openai.Client, model, prompt string, maxTokens int) (*ope
 					Content: prompt,
 				},
 			},
+			// Add the deprecated `MaxTokens` for backward compatibility with some older API servers.
+			MaxTokens:           maxTokens,
 			MaxCompletionTokens: maxTokens,
 			Temperature:         1,
 		},
