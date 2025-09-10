@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/Yoosu-L/llmapibenchmark/internal/utils"
 	"github.com/schollz/progressbar/v3"
@@ -24,26 +25,10 @@ func (benchmark *Benchmark) runCli() error {
 	// Test each concurrency level and print results
 	var results [][]interface{}
 	for _, concurrency := range benchmark.ConcurrencyLevels {
-		// Create a progress bar for this specific concurrency level
-		expectedTokens := concurrency * benchmark.MaxTokens
-		bar := progressbar.NewOptions(expectedTokens,
-			progressbar.OptionSetDescription(fmt.Sprintf("Concurrency %d", concurrency)),
-			progressbar.OptionSetWidth(40),
-			progressbar.OptionShowCount(),
-			progressbar.OptionShowIts(),
-			progressbar.OptionSetItsString("tokens"),
-			progressbar.OptionSpinnerType(14),
-			progressbar.OptionSetRenderBlankState(true),
-		)
-
-		result, err := benchmark.measureSpeedWithProgress(latency, concurrency, bar)
+		result, err := benchmark.measureSpeed(latency, concurrency, true)
 		if err != nil {
 			return fmt.Errorf("concurrency %d: %v", concurrency, err)
 		}
-
-		bar.Finish()
-		bar.Clear() // Clear the progress bar from the terminal
-		bar.Close() // Clean up the progress bar
 
 		// Print current results
 		fmt.Printf("| %11d | %32.2f | %29.2f | %12.2f | %12.2f |\n",
@@ -86,7 +71,7 @@ func (benchmark *Benchmark) run() (BenchmarkResult, error) {
 	result.Latency = latency
 
 	for _, concurrency := range benchmark.ConcurrencyLevels {
-		measurement, err := benchmark.measureSpeed(latency, concurrency)
+		measurement, err := benchmark.measureSpeed(latency, concurrency, false)
 		if err != nil {
 			return result, fmt.Errorf("concurrency %d: %v", concurrency, err)
 		}
@@ -97,7 +82,21 @@ func (benchmark *Benchmark) run() (BenchmarkResult, error) {
 	return result, nil
 }
 
-func (benchmark *Benchmark) measureSpeed(latency float64, concurrency int) (utils.SpeedResult, error) {
+func (benchmark *Benchmark) measureSpeed(latency float64, concurrency int, clearProgress bool) (utils.SpeedResult, error) {
+
+	// Create a progress bar for this specific concurrency level
+	expectedTokens := concurrency * benchmark.MaxTokens
+	bar := progressbar.NewOptions(expectedTokens,
+		progressbar.OptionSetWriter(os.Stderr),
+		progressbar.OptionSetDescription(fmt.Sprintf("Concurrency %d", concurrency)),
+		progressbar.OptionSetWidth(40),
+		progressbar.OptionShowCount(),
+		progressbar.OptionShowIts(),
+		progressbar.OptionSetItsString("tokens"),
+		progressbar.OptionSpinnerType(14),
+		progressbar.OptionSetRenderBlankState(true),
+	)
+
 	speedMeasurement := utils.SpeedMeasurement{
 		BaseUrl:     benchmark.BaseURL,
 		ApiKey:      benchmark.ApiKey,
@@ -113,30 +112,16 @@ func (benchmark *Benchmark) measureSpeed(latency float64, concurrency int) (util
 	}
 
 	var result utils.SpeedResult
-	result, err := speedMeasurement.Run()
-	if err != nil {
-		return result, fmt.Errorf("measurement error: %v", err)
-	}
-	return result, nil
-}
+	result, err := speedMeasurement.Run(bar)
 
-func (benchmark *Benchmark) measureSpeedWithProgress(latency float64, concurrency int, bar *progressbar.ProgressBar) (utils.SpeedResult, error) {
-	speedMeasurement := utils.SpeedMeasurement{
-		BaseUrl:     benchmark.BaseURL,
-		ApiKey:      benchmark.ApiKey,
-		ModelName:   benchmark.ModelName,
-		Prompt:      benchmark.Prompt,
-		NumWords:    benchmark.NumWords,
-		MaxTokens:   benchmark.MaxTokens,
-		Latency:     latency,
-		Concurrency: concurrency,
+	bar.Finish()
+	if clearProgress {
+		bar.Clear()
+	} else {
+		fmt.Fprintf(os.Stderr, "\n")
 	}
-	if benchmark.UseRandomInput {
-		speedMeasurement.UseRandomInput = true
-	}
+	bar.Close()
 
-	var result utils.SpeedResult
-	result, err := speedMeasurement.RunWithProgress(bar)
 	if err != nil {
 		return result, fmt.Errorf("measurement error: %v", err)
 	}

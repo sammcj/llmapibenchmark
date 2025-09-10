@@ -78,17 +78,17 @@ func main() {
 
 	// Get input tokens
 	if benchmark.UseRandomInput {
-		resp, err := api.AskOpenAiWithRandomInput(client, benchmark.ModelName, *numWords/4, 4)
+		_, _, promptTokens, err := api.AskOpenAiRandomInput(client, benchmark.ModelName, *numWords/4, 4, nil)
 		if err != nil {
 			log.Fatalf("Error getting prompt tokens: %v", err)
 		}
-		benchmark.InputTokens = resp.Usage.PromptTokens
+		benchmark.InputTokens = promptTokens
 	} else {
-		resp, err := api.AskOpenAi(client, benchmark.ModelName, *prompt, 4)
+		_, _, promptTokens, err := api.AskOpenAi(client, benchmark.ModelName, *prompt, 4, nil)
 		if err != nil {
 			log.Fatalf("Error getting prompt tokens: %v", err)
 		}
-		benchmark.InputTokens = resp.Usage.PromptTokens
+		benchmark.InputTokens = promptTokens
 	}
 
 	if *format == "" {
