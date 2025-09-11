@@ -37,98 +37,7 @@ func roundToTwoDecimals(f float64) float64 {
 }
 
 // Run measures API generation throughput and TTFT.
-func (setup *SpeedMeasurement) Run() (SpeedResult, error) {
-	config := openai.DefaultConfig(setup.ApiKey)
-	config.BaseURL = setup.BaseUrl
-	client := openai.NewClientWithConfig(config)
-
-	var wg sync.WaitGroup
-	var responseTokens sync.Map
-	var promptTokens sync.Map
-	var ttfts sync.Map
-	var threadErrors sync.Map
-
-	start := time.Now()
-
-	// Send requests concurrently
-	for i := 0; i < setup.Concurrency; i++ {
-		wg.Add(1)
-		go func(index int) {
-			defer wg.Done()
-			var ttft float64
-			var completionTokens, inputTokens int
-			var err error
-			if setup.UseRandomInput {
-				ttft, completionTokens, inputTokens, err = api.AskOpenAiStreamWithRandomInput(client, setup.ModelName, setup.NumWords, setup.MaxTokens)
-			} else {
-				ttft, completionTokens, inputTokens, err = api.AskOpenAiStream(client, setup.ModelName, setup.Prompt, setup.MaxTokens)
-			}
-			if err != nil {
-				threadErrors.Store(index, err)
-				return
-			}
-			ttfts.Store(index, ttft)
-			responseTokens.Store(index, completionTokens)
-			promptTokens.Store(index, inputTokens)
-		}(i)
-	}
-
-	wg.Wait()
-	duration := time.Since(start)
-
-	// Check if any errors occurred
-	var errSlice []error
-	threadErrors.Range(func(key, value interface{}) bool {
-		errSlice = append(errSlice, value.(error))
-		return true
-	})
-	if len(errSlice) > 0 {
-		return SpeedResult{}, fmt.Errorf("error measuring speed: %v", errSlice)
-	}
-
-	// Calculate total tokens
-	totalResponseTokens := 0
-	responseTokens.Range(func(_, value interface{}) bool {
-		totalResponseTokens += value.(int)
-		return true
-	})
-
-	totalPromptTokens := 0
-	promptTokens.Range(func(_, value interface{}) bool {
-		totalPromptTokens += value.(int)
-		return true
-	})
-
-	measurement := SpeedResult{}
-	measurement.Concurrency = setup.Concurrency
-
-	// Calculate max and min TTFT
-	measurement.MaxTtft = 0.0
-	measurement.MinTtft = math.Inf(1)
-	ttfts.Range(func(_, value interface{}) bool {
-		ttft := value.(float64)
-		if ttft > measurement.MaxTtft {
-			measurement.MaxTtft = ttft
-		}
-		if ttft < measurement.MinTtft {
-			measurement.MinTtft = ttft
-		}
-		return true
-	})
-	measurement.MaxTtft = roundToTwoDecimals(measurement.MaxTtft)
-	measurement.MinTtft = roundToTwoDecimals(measurement.MinTtft)
-
-	// Calculate speed (tokens/second)
-	measurement.GenerationSpeed = roundToTwoDecimals(float64(totalResponseTokens) / (duration.Seconds() - setup.Latency/1000))
-
-	// Calculate Prompt Throughput
-	measurement.PromptThroughput = roundToTwoDecimals(float64(totalPromptTokens) / (measurement.MaxTtft - setup.Latency/1000))
-
-	return measurement, nil
-}
-
-// RunWithProgress measures API generation throughput and TTFT with progress bar updates.
-func (setup *SpeedMeasurement) RunWithProgress(bar *progressbar.ProgressBar) (SpeedResult, error) {
+func (setup *SpeedMeasurement) Run(bar *progressbar.ProgressBar) (SpeedResult, error) {
 	config := openai.DefaultConfig(setup.ApiKey)
 	config.BaseURL = setup.BaseUrl
 	client := openai.NewClientWithConfig(config)
@@ -150,9 +59,9 @@ func (setup *SpeedMeasurement) RunWithProgress(bar *progressbar.ProgressBar) (Sp
 			var completionTokens, inputTokens int
 			var err error
 			if setup.UseRandomInput {
-				ttft, completionTokens, inputTokens, err = api.AskOpenAiStreamWithRandomInputAndProgress(client, setup.ModelName, setup.NumWords, setup.MaxTokens, bar)
+				ttft, completionTokens, inputTokens, err = api.AskOpenAiRandomInput(client, setup.ModelName, setup.NumWords, setup.MaxTokens, bar)
 			} else {
-				ttft, completionTokens, inputTokens, err = api.AskOpenAiStreamWithProgress(client, setup.ModelName, setup.Prompt, setup.MaxTokens, bar)
+				ttft, completionTokens, inputTokens, err = api.AskOpenAi(client, setup.ModelName, setup.Prompt, setup.MaxTokens, bar)
 			}
 			if err != nil {
 				threadErrors.Store(index, err)
