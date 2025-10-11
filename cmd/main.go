@@ -1,8 +1,10 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/Yoosu-L/llmapibenchmark/internal/api"
@@ -25,6 +27,7 @@ func main() {
 	maxTokens := pflag.IntP("max-tokens", "t", 512, "Maximum number of tokens to generate")
 	format := pflag.StringP("format", "f", "", "Output format (optional)")
 	help := pflag.BoolP("help", "h", false, "Show this help message")
+	insecureSkipTLSVerify := pflag.Bool("insecure-skip-tls-verify", false, "Skip TLS certificate verification. Use with caution, this is insecure.")
 	pflag.Parse()
 
 	if *help {
@@ -55,6 +58,20 @@ func main() {
 	}
 	config := openai.DefaultConfig(*apiKey)
 	config.BaseURL = *baseURL
+
+	if *insecureSkipTLSVerify {
+		fmt.Fprintln(os.Stderr, "\n/!\\ WARNING: Skipping TLS certificate verification. This is insecure and should not be used in production. /!\\")
+
+		// Clone the default Transport to preserve its settings
+		defaultTransport, ok := http.DefaultTransport.(*http.Transport)
+		if !ok {
+			log.Fatalf("http.DefaultTransport is not an *http.Transport")
+		}
+		tr := defaultTransport.Clone()
+		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		config.HTTPClient = &http.Client{Transport: tr}
+	}
+
 	client := openai.NewClientWithConfig(config)
 
 	// Discover model name if not provided
