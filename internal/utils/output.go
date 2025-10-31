@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -26,7 +27,14 @@ func PrintBenchmarkHeader(modelName string, inputTokens int, maxTokens int, late
 
 // SaveResultsToMD saves the benchmark results to a Markdown file.
 func SaveResultsToMD(results [][]interface{}, modelName string, inputTokens int, maxTokens int, latency float64) {
-	filename := fmt.Sprintf("API_Throughput_%s.md", modelName)
+	// sanitize modelName to create a safe filename (replace path separators)
+	safeModelName := strings.ReplaceAll(modelName, "/", "_")
+	safeModelName = strings.ReplaceAll(safeModelName, "\\", "_")
+	safeModelName = strings.TrimSpace(safeModelName)
+	if safeModelName == "" {
+		safeModelName = "model"
+	}
+	filename := fmt.Sprintf("API_Throughput_%s.md", safeModelName)
 	file, err := os.Create(filename)
 	if err != nil {
 		log.Printf("Error creating file: %v", err)
