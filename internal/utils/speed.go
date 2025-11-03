@@ -1,9 +1,9 @@
 package utils
 
 import (
-	"fmt"
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Yoosu-L/llmapibenchmark/internal/api"
@@ -30,6 +30,7 @@ type SpeedResult struct {
 	PromptThroughput float64 `json:"prompt_throughput" yaml:"prompt-throughput"`
 	MaxTtft          float64 `json:"max_ttft" yaml:"max-ttft"`
 	MinTtft          float64 `json:"min_ttft" yaml:"min-ttft"`
+	SuccessRate      float64 `json:"success_rate" yaml:"success-rate"`
 }
 
 func roundToTwoDecimals(f float64) float64 {
@@ -46,7 +47,8 @@ func (setup *SpeedMeasurement) Run(bar *progressbar.ProgressBar) (SpeedResult, e
 	var responseTokens sync.Map
 	var promptTokens sync.Map
 	var ttfts sync.Map
-	var threadErrors sync.Map
+	var successfulRequests atomic.Int32
+	var failedRequests atomic.Int32
 
 	start := time.Now()
 
@@ -64,9 +66,10 @@ func (setup *SpeedMeasurement) Run(bar *progressbar.ProgressBar) (SpeedResult, e
 				ttft, completionTokens, inputTokens, err = api.AskOpenAi(client, setup.ModelName, setup.Prompt, setup.MaxTokens, bar)
 			}
 			if err != nil {
-				threadErrors.Store(index, err)
+				failedRequests.Add(1)
 				return
 			}
+			successfulRequests.Add(1)
 			ttfts.Store(index, ttft)
 			responseTokens.Store(index, completionTokens)
 			promptTokens.Store(index, inputTokens)
@@ -75,16 +78,6 @@ func (setup *SpeedMeasurement) Run(bar *progressbar.ProgressBar) (SpeedResult, e
 
 	wg.Wait()
 	duration := time.Since(start)
-
-	// Check if any errors occurred
-	var errSlice []error
-	threadErrors.Range(func(key, value interface{}) bool {
-		errSlice = append(errSlice, value.(error))
-		return true
-	})
-	if len(errSlice) > 0 {
-		return SpeedResult{}, fmt.Errorf("error measuring speed: %v", errSlice)
-	}
 
 	// Calculate total tokens
 	totalResponseTokens := 0
@@ -101,6 +94,12 @@ func (setup *SpeedMeasurement) Run(bar *progressbar.ProgressBar) (SpeedResult, e
 
 	measurement := SpeedResult{}
 	measurement.Concurrency = setup.Concurrency
+
+	// Calculate success rate
+	totalRequests := setup.Concurrency
+	if totalRequests > 0 {
+		measurement.SuccessRate = float64(successfulRequests.Load()) / float64(totalRequests)
+	}
 
 	// Calculate max and min TTFT
 	measurement.MaxTtft = 0.0

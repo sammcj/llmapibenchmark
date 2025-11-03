@@ -19,8 +19,8 @@ func (benchmark *Benchmark) runCli() error {
 	utils.PrintBenchmarkHeader(benchmark.ModelName, benchmark.InputTokens, benchmark.MaxTokens, latency)
 
 	// Print table header
-	fmt.Println("| Concurrency | Generation Throughput (tokens/s) |  Prompt Throughput (tokens/s) | Min TTFT (s) | Max TTFT (s) |")
-	fmt.Println("|-------------|----------------------------------|-------------------------------|--------------|--------------|")
+	fmt.Println("| Concurrency | Generation Throughput (tokens/s) |  Prompt Throughput (tokens/s) | Min TTFT (s) | Max TTFT (s) | Success Rate |")
+	fmt.Println("|-------------|----------------------------------|-------------------------------|--------------|--------------|--------------|")
 
 	// Test each concurrency level and print results
 	var results [][]interface{}
@@ -31,12 +31,13 @@ func (benchmark *Benchmark) runCli() error {
 		}
 
 		// Print current results
-		fmt.Printf("| %11d | %32.2f | %29.2f | %12.2f | %12.2f |\n",
+		fmt.Printf("| %11d | %32.2f | %29.2f | %12.2f | %12.2f | %11.2f%% |\n",
 			concurrency,
 			result.GenerationSpeed,
 			result.PromptThroughput,
 			result.MinTtft,
 			result.MaxTtft,
+			result.SuccessRate*100,
 		)
 
 		// Save results for later
@@ -46,6 +47,7 @@ func (benchmark *Benchmark) runCli() error {
 			result.PromptThroughput,
 			result.MinTtft,
 			result.MaxTtft,
+			result.SuccessRate,
 		})
 	}
 
@@ -111,8 +113,10 @@ func (benchmark *Benchmark) measureSpeed(latency float64, concurrency int, clear
 		speedMeasurement.UseRandomInput = true
 	}
 
-	var result utils.SpeedResult
 	result, err := speedMeasurement.Run(bar)
+	if err != nil {
+		return result, fmt.Errorf("measurement error: %v", err)
+	}
 
 	bar.Finish()
 	if clearProgress {
@@ -122,8 +126,5 @@ func (benchmark *Benchmark) measureSpeed(latency float64, concurrency int, clear
 	}
 	bar.Close()
 
-	if err != nil {
-		return result, fmt.Errorf("measurement error: %v", err)
-	}
 	return result, nil
 }
