@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/Yoosu-L/llmapibenchmark/internal/utils"
 	"github.com/schollz/progressbar/v3"
@@ -19,8 +20,11 @@ func (benchmark *Benchmark) runCli() error {
 	utils.PrintBenchmarkHeader(benchmark.ModelName, benchmark.InputTokens, benchmark.MaxTokens, latency)
 
 	// Print table header
-	fmt.Println("| Concurrency | Generation Throughput (tokens/s) |  Prompt Throughput (tokens/s) | Min TTFT (s) | Max TTFT (s) | Success Rate | Duration (s) |")
-	fmt.Println("|-------------|----------------------------------|-------------------------------|--------------|--------------|--------------|--------------|")
+	bold := "\033[1m"
+	green := "\033[32m"
+	reset := "\033[0m"
+	fmt.Printf("%s%s| Conc | Gen TPS | Prompt TPS | Min TTFT | Max TTFT | Success | Total(s) |%s\n", green, bold, reset)
+	fmt.Printf("%s|:----:|:-------:|:----------:|:--------:|:--------:|:-------:|:--------:|%s\n", green, reset)
 
 	// Test each concurrency level and print results
 	var results [][]interface{}
@@ -31,7 +35,8 @@ func (benchmark *Benchmark) runCli() error {
 		}
 
 		// Print current results
-		fmt.Printf("| %11d | %32.2f | %29.2f | %12.2f | %12.2f | %11.2f%% | %12.2f |\n",
+		fmt.Printf("%s| %4d | %7.2f | %10.2f | %8.2f | %8.2f | %7.2f%% | %8.2f |%s\n",
+			green,
 			concurrency,
 			result.GenerationSpeed,
 			result.PromptThroughput,
@@ -39,6 +44,7 @@ func (benchmark *Benchmark) runCli() error {
 			result.MaxTtft,
 			result.SuccessRate*100,
 			result.Duration,
+			reset,
 		)
 
 		// Save results for later
@@ -53,8 +59,8 @@ func (benchmark *Benchmark) runCli() error {
 		})
 	}
 
-	fmt.Println("|-------------|----------------------------------|-------------------------------|--------------|--------------|--------------|--------------|")
-	fmt.Println("\n==============================================================================================================================================")
+	fmt.Printf("%s|:----:|:-------:|:----------:|:--------:|:--------:|:-------:|:--------:|%s\n", green, reset)
+	fmt.Println("\n" + "\033[36m" + strings.Repeat("=", 80) + "\033[0m")
 
 	// Save results to Markdown
 	utils.SaveResultsToMD(results, benchmark.ModelName, benchmark.InputTokens, benchmark.MaxTokens, latency)
@@ -96,10 +102,14 @@ func (benchmark *Benchmark) measureSpeed(latency float64, concurrency int, clear
 
 	// Create a progress bar for this specific concurrency level
 	expectedTokens := concurrency * benchmark.MaxTokens
+	// Pad description to a fixed length for consistent alignment
+	description := fmt.Sprintf("Conc %-2d", concurrency)
+	barWidth := 20
+
 	bar := progressbar.NewOptions(expectedTokens,
 		progressbar.OptionSetWriter(os.Stderr),
-		progressbar.OptionSetDescription(fmt.Sprintf("Concurrency %d", concurrency)),
-		progressbar.OptionFullWidth(),
+		progressbar.OptionSetDescription(description),
+		progressbar.OptionSetWidth(barWidth),
 		progressbar.OptionUseANSICodes(true),
 		progressbar.OptionShowCount(),
 		progressbar.OptionShowIts(),
