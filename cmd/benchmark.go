@@ -89,12 +89,18 @@ func (benchmark *Benchmark) run() (BenchmarkResult, error) {
 
 func (benchmark *Benchmark) measureSpeed(latency float64, concurrency int, clearProgress bool) (utils.SpeedResult, error) {
 
+	// Disable terminal auto-wrap (DECAWM) to prevent the progress bar from breaking into multiple new lines
+	fmt.Fprint(os.Stderr, "\x1b[?7l")
+	// Re-enable terminal auto-wrap when the function returns
+	defer fmt.Fprint(os.Stderr, "\x1b[?7h")
+
 	// Create a progress bar for this specific concurrency level
 	expectedTokens := concurrency * benchmark.MaxTokens
 	bar := progressbar.NewOptions(expectedTokens,
 		progressbar.OptionSetWriter(os.Stderr),
 		progressbar.OptionSetDescription(fmt.Sprintf("Concurrency %d", concurrency)),
-		progressbar.OptionSetWidth(40),
+		progressbar.OptionFullWidth(),
+		progressbar.OptionUseANSICodes(true),
 		progressbar.OptionShowCount(),
 		progressbar.OptionShowIts(),
 		progressbar.OptionSetItsString("tokens"),
