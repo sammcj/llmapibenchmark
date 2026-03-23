@@ -23,8 +23,8 @@ func (benchmark *Benchmark) runCli() error {
 	bold := "\033[1m"
 	green := "\033[32m"
 	reset := "\033[0m"
-	fmt.Printf("%s%s| Conc | Gen TPS | Prompt TPS | Min TTFT | Max TTFT | Success | Total(s) |%s\n", green, bold, reset)
-	fmt.Printf("%s|:----:|:-------:|:----------:|:--------:|:--------:|:-------:|:--------:|%s\n", green, reset)
+	fmt.Printf("%s%s| Conc | Gen TPS | Prompt TPS | Min TTFT(s) | Max TTFT(s) | Success | Total(s) |%s\n", green, bold, reset)
+	fmt.Printf("%s|:----:|:-------:|:----------:|:-----------:|:-----------:|:-------:|:--------:|%s\n", green, reset)
 
 	// Test each concurrency level and print results
 	var results [][]interface{}
@@ -35,7 +35,7 @@ func (benchmark *Benchmark) runCli() error {
 		}
 
 		// Print current results
-		fmt.Printf("%s| %4d | %7.2f | %10.2f | %8.2f | %8.2f | %7.2f%% | %8.2f |%s\n",
+		fmt.Printf("%s| %4d | %7.2f | %10.2f | %11.2f | %11.2f | %6.2f%% | %8.2f |%s\n",
 			green,
 			concurrency,
 			result.GenerationSpeed,
@@ -59,7 +59,7 @@ func (benchmark *Benchmark) runCli() error {
 		})
 	}
 
-	fmt.Printf("%s|:----:|:-------:|:----------:|:--------:|:--------:|:-------:|:--------:|%s\n", green, reset)
+	fmt.Printf("%s|:----:|:-------:|:----------:|:-----------:|:-----------:|:-------:|:--------:|%s\n", green, reset)
 	fmt.Println("\n" + "\033[36m" + strings.Repeat("=", 80) + "\033[0m")
 
 	// Save results to Markdown

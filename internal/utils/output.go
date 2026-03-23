@@ -61,8 +61,8 @@ func SaveResultsToMD(results [][]interface{}, modelName string, inputTokens int,
 	defer file.Close()
 
 	file.WriteString(fmt.Sprintf("```\nModel: %s\nLatency: %.2f ms\nInput: %d tokens / Output: %d tokens\n```\n\n", modelName, latency, inputTokens, maxTokens))
-	file.WriteString("| Conc | Gen TPS | Prompt TPS | Min TTFT | Max TTFT | Success | Total(s) |\n")
-	file.WriteString("|:----:|:-------:|:----------:|:--------:|:--------:|:-------:|:--------:|\n")
+	file.WriteString("| Conc | Gen TPS | Prompt TPS | Min TTFT(s) | Max TTFT(s) | Success | Total(s) |\n")
+	file.WriteString("|:----:|:-------:|:----------:|:-----------:|:-----------:|:-------:|:--------:|\n")
 
 	for _, result := range results {
 		concurrency := result[0].(int)
@@ -72,7 +72,7 @@ func SaveResultsToMD(results [][]interface{}, modelName string, inputTokens int,
 		maxTTFT := result[4].(float64)
 		successRate := result[5].(float64)
 		duration := result[6].(float64)
-		file.WriteString(fmt.Sprintf("| %4d | %7.2f | %10.2f | %8.2f | %8.2f | %7.2f%% | %8.2f |\n",
+		file.WriteString(fmt.Sprintf("| %4d | %7.2f | %10.2f | %11.2f | %11.2f | %6.2f%% | %8.2f |\n",
 			concurrency,
 			generationSpeed,
 			promptThroughput,
