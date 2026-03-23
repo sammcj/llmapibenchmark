@@ -59,8 +59,8 @@ func AskOpenAi(client *openai.Client, model string, prompt string, maxTokens int
 		}
 
 		if !firstTokenSeen && len(resp.Choices) > 0 {
-			content := resp.Choices[0].Delta.Content
-			if strings.TrimSpace(content) != "" {
+			// Capture TTFT on the first chunk that has either content (including whitespace) or a finish reason
+			if resp.Choices[0].Delta.Content != "" || resp.Choices[0].FinishReason != "" {
 				timeToFirstToken = time.Since(start).Seconds()
 				firstTokenSeen = true
 			}

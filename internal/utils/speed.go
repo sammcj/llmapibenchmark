@@ -122,10 +122,26 @@ func (setup *SpeedMeasurement) Run(bar *progressbar.ProgressBar) (SpeedResult, e
 	measurement.Duration = roundToTwoDecimals(float64(duration.Seconds()))
 
 	// Calculate speed (tokens/second)
-	measurement.GenerationSpeed = roundToTwoDecimals(float64(totalResponseTokens) / (duration.Seconds() - setup.Latency/1000))
+	// Ensure we don't divide by zero or negative values
+	genDuration := duration.Seconds() - setup.Latency/1000
+	if genDuration <= 0 {
+		genDuration = duration.Seconds() // Fallback to total duration if latency is weird
+	}
+	measurement.GenerationSpeed = roundToTwoDecimals(float64(totalResponseTokens) / genDuration)
 
 	// Calculate Prompt Throughput
-	measurement.PromptThroughput = roundToTwoDecimals(float64(totalPromptTokens) / (measurement.MaxTtft - setup.Latency/1000))
+	// Prompt TPS = Total Prompt Tokens / Max TTFT
+	// We subtract network latency to get a better estimate of the model's prompt processing speed
+	promptDuration := measurement.MaxTtft - setup.Latency/1000
+	if promptDuration <= 0 {
+		// If TTFT is very low (e.g. cached or local), use MaxTtft directly
+		if measurement.MaxTtft > 0 {
+			promptDuration = measurement.MaxTtft
+		} else {
+			promptDuration = duration.Seconds() // Fallback
+		}
+	}
+	measurement.PromptThroughput = roundToTwoDecimals(float64(totalPromptTokens) / promptDuration)
 
 	return measurement, nil
 }

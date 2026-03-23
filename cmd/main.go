@@ -44,7 +44,12 @@ func main() {
 	benchmark.ApiKey = *apiKey
 	benchmark.ModelName = *model
 	benchmark.Prompt = *prompt
-	benchmark.NumWords = *numWords
+	// Since each random word is roughly equivalent to 4 tokens (varies by model tokenizer),
+	// we divide the target token count by 4. This is an estimation.
+	benchmark.NumWords = *numWords / 4
+	if *numWords > 0 && benchmark.NumWords == 0 {
+		benchmark.NumWords = 1
+	}
 	benchmark.MaxTokens = *maxTokens
 
 	// Parse concurrency levels
@@ -98,7 +103,7 @@ func main() {
 
 	// Get input tokens
 	if benchmark.UseRandomInput {
-		_, _, promptTokens, err := api.AskOpenAiRandomInput(client, benchmark.ModelName, *numWords/4, 4, nil)
+		_, _, promptTokens, err := api.AskOpenAiRandomInput(client, benchmark.ModelName, benchmark.NumWords, 4, nil)
 		if err != nil {
 			log.Fatalf("Error getting prompt tokens: %v", err)
 		}
