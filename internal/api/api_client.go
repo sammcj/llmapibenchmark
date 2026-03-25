@@ -59,8 +59,9 @@ func AskOpenAi(client *openai.Client, model string, prompt string, maxTokens int
 		}
 
 		if !firstTokenSeen && len(resp.Choices) > 0 {
-			// Capture TTFT on the first chunk that has either content (including whitespace) or a finish reason
-			if resp.Choices[0].Delta.Content != "" || resp.Choices[0].FinishReason != "" {
+			delta := resp.Choices[0].Delta
+			// Capture TTFT on the first chunk that has either regular content, reasoning content, or a finish reason
+			if delta.Content != "" || delta.ReasoningContent != "" || resp.Choices[0].FinishReason != "" {
 				timeToFirstToken = time.Since(start).Seconds()
 				firstTokenSeen = true
 			}
@@ -68,7 +69,9 @@ func AskOpenAi(client *openai.Client, model string, prompt string, maxTokens int
 
 		// Process each chunk, accumulating to response content
 		if len(resp.Choices) > 0 {
-			content := resp.Choices[0].Delta.Content
+			delta := resp.Choices[0].Delta
+			// Both reasoning content and regular content should be processed for the progress bar
+			content := delta.ReasoningContent + delta.Content
 			if content != "" {
 				accumulatedContent += content
 
